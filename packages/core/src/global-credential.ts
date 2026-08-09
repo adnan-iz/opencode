@@ -95,16 +95,15 @@ const layer = Layer.effect(
 
     const decryptValue = (encrypted: string, keychainRef: string | null) =>
       Effect.gen(function* () {
-        if (keychainRef) {
-          const account = keychainRef.replace(KEYCHAIN_SERVICE + ":", "")
-          const json = yield* Keychain.getSecret(KEYCHAIN_SERVICE, account).pipe(
-            Effect.catch(() => Effect.succeed(undefined)),
-          )
-          if (json) return decode(JSON.parse(json))
-          return yield* Effect.die(new Error("Credential not found in keychain"))
+        if (!keychainRef) {
+          return yield* Effect.die(new Error("Credential has no keychain reference — re-create it"))
         }
-        // Legacy plaintext fallback for migration only — try to parse directly
-        return decode(JSON.parse(encrypted))
+        const account = keychainRef.replace(KEYCHAIN_SERVICE + ":", "")
+        const json = yield* Keychain.getSecret(KEYCHAIN_SERVICE, account).pipe(
+          Effect.catch(() => Effect.succeed(undefined)),
+        )
+        if (!json) return yield* Effect.die(new Error("Credential not found in keychain"))
+        return decode(JSON.parse(json))
       })
 
     const encryptValue = (id: string, value: CredentialValue) =>
