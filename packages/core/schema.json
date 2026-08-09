@@ -29,6 +29,14 @@
       "entityType": "tables"
     },
     {
+      "name": "global_credential",
+      "entityType": "tables"
+    },
+    {
+      "name": "project_credential_ref",
+      "entityType": "tables"
+    },
+    {
       "name": "event_sequence",
       "entityType": "tables"
     },
