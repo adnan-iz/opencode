@@ -236,6 +236,26 @@ export default {
           CONSTRAINT \`fk_session_share_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
         );
       `)
+      yield* tx.run(`
+        CREATE TABLE \`global_credential\` (
+          \`id\` text PRIMARY KEY,
+          \`label\` text NOT NULL,
+          \`type\` text NOT NULL,
+          \`value\` text NOT NULL,
+          \`keychain_ref\` text,
+          \`tags\` text,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`project_credential_ref\` (
+          \`project_path\` text NOT NULL,
+          \`credential_id\` text NOT NULL,
+          \`env_mapping\` text,
+          CONSTRAINT \`project_credential_ref_pk\` PRIMARY KEY(\`project_path\`, \`credential_id\`)
+        );
+      `)
       yield* tx.run(`CREATE UNIQUE INDEX \`event_aggregate_seq_idx\` ON \`event\` (\`aggregate_id\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`event_aggregate_type_seq_idx\` ON \`event\` (\`aggregate_id\`,\`type\`,\`seq\`);`)
       yield* tx.run(
