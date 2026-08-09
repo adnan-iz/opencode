@@ -62,12 +62,16 @@ function extractField(value: CredentialValue, fieldPath: string): string | undef
 }
 
 function rowToInfo(row: typeof GlobalCredentialTable.$inferSelect, value: CredentialValue): Info {
+  let tags: string[] | undefined
+  if (row.tags) {
+    try { tags = JSON.parse(row.tags) } catch { tags = undefined }
+  }
   return {
     id: row.id as ID,
     label: row.label,
     type: row.type,
     value,
-    tags: row.tags ? JSON.parse(row.tags) : undefined,
+    tags,
     timeCreated: row.time_created,
     timeUpdated: row.time_updated,
   }
@@ -78,18 +82,19 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database.Service
 
+    const decode = Schema.decodeUnknownSync(CredentialValueSchema)
     const doGet = (id: ID) =>
       Effect.gen(function* () {
         const row = yield* db.select().from(GlobalCredentialTable).where(eq(GlobalCredentialTable.id, id)).get().pipe(Effect.orDie)
         if (!row) return undefined
-        const value = JSON.parse(row.value) as CredentialValue
+        const value = decode(JSON.parse(row.value))
         return rowToInfo(row, value)
       })
 
     return Service.of({
       all: Effect.fn("GlobalCredential.all")(function* () {
         const rows = yield* db.select().from(GlobalCredentialTable).orderBy(asc(GlobalCredentialTable.time_created)).all().pipe(Effect.orDie)
-        return rows.map((row) => rowToInfo(row, JSON.parse(row.value) as CredentialValue))
+        return rows.map((row) => rowToInfo(row, decode(JSON.parse(row.value))))
       }),
 
       get: Effect.fn("GlobalCredential.get")(doGet),
@@ -121,9 +126,9 @@ const layer = Layer.effect(
         const existing = yield* db.select().from(GlobalCredentialTable).where(eq(GlobalCredentialTable.id, id)).get().pipe(Effect.orDie)
         if (!existing) return
         const sets: Record<string, unknown> = { time_updated: Date.now() }
-        if (updates.label) sets.label = updates.label
-        if (updates.tags) sets.tags = JSON.stringify(updates.tags)
-        if (updates.value) sets.value = JSON.stringify(updates.value)
+        if (updates.label !== undefined) sets.label = updates.label
+        if (updates.tags !== undefined) sets.tags = JSON.stringify(updates.tags)
+        if (updates.value !== undefined) sets.value = JSON.stringify(updates.value)
         yield* db.update(GlobalCredentialTable).set(sets).where(eq(GlobalCredentialTable.id, id)).run().pipe(Effect.orDie)
       }),
 
@@ -150,6 +155,7 @@ const layer = Layer.effect(
       }),
 
       linked: Effect.fn("GlobalCredential.linked")(function* (projectPath) {
+        // ponytail: N+1 acceptable for credential store, batch if throughput matters
         const refs = yield* db.select().from(ProjectCredentialRefTable)
           .where(eq(ProjectCredentialRefTable.project_path, projectPath))
           .all().pipe(Effect.orDie)
@@ -162,6 +168,7 @@ const layer = Layer.effect(
       }),
 
       resolveForProject: Effect.fn("GlobalCredential.resolveForProject")(function* (projectPath) {
+        // ponytail: N+1 acceptable for credential store, batch if throughput matters
         const refs = yield* db.select().from(ProjectCredentialRefTable)
           .where(eq(ProjectCredentialRefTable.project_path, projectPath))
           .all().pipe(Effect.orDie)
@@ -169,7 +176,10 @@ const layer = Layer.effect(
         for (const ref of refs) {
           const cred = yield* doGet(ref.credential_id as ID)
           if (!cred) continue
-          const mapping = ref.env_mapping ? JSON.parse(ref.env_mapping) as Record<string, string> : {}
+          const mapping = (() => {
+            if (!ref.env_mapping) return {} as Record<string, string>
+            try { return JSON.parse(ref.env_mapping) as Record<string, string> } catch { return {} }
+          })()
           for (const [envKey, fieldPath] of Object.entries(mapping)) {
             const value = extractField(cred.value, fieldPath)
             if (value !== undefined) env[envKey] = value
