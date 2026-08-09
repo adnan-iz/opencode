@@ -15,7 +15,7 @@ export const ProjectCredentialRefTable = sqliteTable(
   "project_credential_ref",
   {
     project_path: text().notNull(),
-    credential_id: text().notNull(),
+    credential_id: text().notNull().references(() => GlobalCredentialTable.id, { onDelete: "cascade" }),
     env_mapping: text(),
   },
   (table) => [primaryKey({ columns: [table.project_path, table.credential_id] })],
