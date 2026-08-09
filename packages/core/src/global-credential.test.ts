@@ -88,4 +88,43 @@ describe("GlobalCredential", () => {
       expect(Exit.isFailure(exit)).toBe(true)
     }),
   )
+
+  it.effect("end-to-end: create, link, resolve, unlink, delete", () =>
+    Effect.gen(function* () {
+      const svc = yield* GlobalCredential.Service
+
+      const cred = yield* svc.create({
+        label: "E2E GitHub Token",
+        type: "api_key",
+        value: { type: "api_key", key: "ghp_e2e_test_token_12345" },
+        tags: ["e2e", "github"],
+      })
+      expect(cred.id).toStartWith("cred_")
+
+      yield* svc.link("/e2e/project", cred.id, { GITHUB_TOKEN: "key", GH_ENTERPRISE: "key" })
+
+      const linked = yield* svc.linked("/e2e/project")
+      expect(linked.length).toBe(1)
+      expect(linked[0].id).toBe(cred.id)
+
+      const env = yield* svc.resolveForProject("/e2e/project")
+      expect(env.GITHUB_TOKEN).toBe("ghp_e2e_test_token_12345")
+      expect(env.GH_ENTERPRISE).toBe("ghp_e2e_test_token_12345")
+
+      yield* svc.link("/e2e/project", cred.id, { GITHUB_TOKEN: "key", PATH: "key" })
+      const env2 = yield* svc.resolveForProject("/e2e/project")
+      expect(env2.PATH).toBeUndefined()
+      expect(env2.GITHUB_TOKEN).toBe("ghp_e2e_test_token_12345")
+
+      yield* svc.unlink("/e2e/project", cred.id)
+
+      const afterUnlink = yield* svc.linked("/e2e/project")
+      expect(afterUnlink.length).toBe(0)
+
+      yield* svc.remove(cred.id)
+
+      const deleted = yield* svc.get(cred.id)
+      expect(deleted).toBeUndefined()
+    }),
+  )
 })
