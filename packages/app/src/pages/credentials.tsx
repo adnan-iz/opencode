@@ -44,14 +44,48 @@ export default function CredentialsPage() {
     }
   }
 
-  const handleCreate = (credential: Omit<Credential, "id" | "time_created">) => {
-    const newCredential: Credential = {
-      ...credential,
-      id: crypto.randomUUID(),
-      time_created: Date.now(),
+  const handleCreate = async (credential: { label: string; type: string; value: string; tags: string[] }) => {
+    try {
+      // Map display labels to protocol type values
+      const typeMap: Record<string, string> = {
+        "API Key": "api_key",
+        "OAuth": "oauth",
+        "Username+Password": "username_password",
+        "Certificate": "certificate",
+        "Custom": "custom",
+      }
+      const protocolType = typeMap[credential.type] ?? "api_key"
+
+      // Build value object based on type
+      let value: Record<string, unknown>
+      if (protocolType === "api_key") {
+        value = { type: "api_key", key: credential.value }
+      } else if (protocolType === "username_password") {
+        value = { type: "username_password", username: credential.value, password: credential.value }
+      } else if (protocolType === "custom") {
+        value = { type: "custom", fields: { value: credential.value } }
+      } else {
+        value = { type: protocolType, key: credential.value }
+      }
+
+      const res = await fetch("/api/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: credential.label,
+          type: protocolType,
+          value,
+          tags: credential.tags,
+        }),
+      })
+      if (res.ok) {
+        const created = await res.json()
+        setCredentials((prev) => [...prev, created])
+        setShowForm(false)
+      }
+    } catch (error) {
+      console.error("Failed to create credential:", error)
     }
-    setCredentials((prev) => [...prev, newCredential])
-    setShowForm(false)
   }
 
   const selectedCredential = () => credentials().find((c) => c.id === selectedId())
@@ -140,7 +174,6 @@ export default function CredentialsPage() {
 
 function CredentialDetail(props: { credential: Credential; onDelete: () => void; onBack: () => void }) {
   const language = useLanguage()
-  const [revealed, setRevealed] = createSignal(false)
 
   return (
     <div class="p-6">
@@ -166,18 +199,7 @@ function CredentialDetail(props: { credential: Credential; onDelete: () => void;
 
         <div>
           <label class="block text-sm font-medium text-text-weak mb-1">{language.t("credentials.value")}</label>
-          <div class="flex items-center gap-2">
-            <div class="flex-1 p-2 bg-background-muted rounded font-mono text-sm">
-              {revealed() ? "••••••••••••••••" : "••••••••••••••••"}
-            </div>
-            <button
-              type="button"
-              class="px-3 py-1.5 text-sm text-text-weak hover:text-text-strong border border-border-base rounded"
-              onClick={() => setRevealed((prev) => !prev)}
-            >
-              {revealed() ? language.t("credentials.hide") : language.t("credentials.reveal")}
-            </button>
-          </div>
+          <div class="p-2 bg-background-muted rounded font-mono text-sm">••••••••••••••••</div>
         </div>
 
         <Show when={props.credential.tags?.length}>
@@ -213,12 +235,12 @@ function CredentialDetail(props: { credential: Credential; onDelete: () => void;
 }
 
 function CredentialForm(props: {
-  onSubmit: (credential: Omit<Credential, "id" | "time_created">) => void
+  onSubmit: (credential: { label: string; type: string; value: string; tags: string[] }) => void
   onCancel: () => void
 }) {
   const language = useLanguage()
   const [label, setLabel] = createSignal("")
-  const [type, setType] = createSignal("API Key")
+  const [type, setType] = createSignal("api_key")
   const [tags, setTags] = createSignal("")
   const [value, setValue] = createSignal("")
 
@@ -229,6 +251,7 @@ function CredentialForm(props: {
     props.onSubmit({
       label: label().trim(),
       type: type(),
+      value: value(),
       tags: tags()
         .split(",")
         .map((t) => t.trim())
@@ -259,11 +282,11 @@ function CredentialForm(props: {
             value={type()}
             onChange={(e) => setType(e.currentTarget.value)}
           >
-            <option value="API Key">API Key</option>
-            <option value="OAuth">OAuth</option>
-            <option value="Username+Password">Username+Password</option>
-            <option value="Certificate">Certificate</option>
-            <option value="Custom">Custom</option>
+            <option value="api_key">API Key</option>
+            <option value="oauth">OAuth</option>
+            <option value="username_password">Username+Password</option>
+            <option value="certificate">Certificate</option>
+            <option value="custom">Custom</option>
           </select>
         </div>
 
