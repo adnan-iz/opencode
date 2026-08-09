@@ -1,7 +1,9 @@
 import { GlobalCredential } from "@opencode-ai/core/global-credential"
+import { Location } from "@opencode-ai/core/location"
 import { Effect } from "effect"
 import { HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
+import path from "path"
 import { Api } from "../api"
 
 function serializeCred(c: GlobalCredential.Info) {
@@ -91,6 +93,10 @@ export const GlobalCredentialHandler = HttpApiBuilder.group(Api, "server.global-
     .handle(
       "global-credential.resolve",
       Effect.fn(function* (ctx) {
+        const location = yield* Location.Service
+        if (path.resolve(ctx.params.project) !== path.resolve(location.directory)) {
+          return HttpServerResponse.empty({ status: 403 })
+        }
         const globalCredential = yield* GlobalCredential.Service
         return yield* globalCredential.resolveForProject(ctx.params.project)
       }),
