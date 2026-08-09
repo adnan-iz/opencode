@@ -17,6 +17,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js"
 import { Config } from "@/config/config"
 import { ConfigMCPV1 } from "@opencode-ai/core/v1/config/mcp"
+import { GlobalCredential } from "@opencode-ai/core/global-credential"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { withTimeout } from "@/util/timeout"
@@ -124,6 +125,19 @@ function remoteURL(value: string) {
   if (URL.canParse(value)) return new URL(value)
 }
 
+function extractCredentialField(
+  value: { type: string; [key: string]: unknown },
+  fieldPath: string,
+): string | undefined {
+  if (fieldPath === "key" && value.type === "api_key") return value.key as string
+  if (fieldPath === "access" && value.type === "oauth") return value.access as string
+  if (fieldPath === "password" && value.type === "username_password") return value.password as string
+  if (fieldPath === "username" && value.type === "username_password") return value.username as string
+  if (fieldPath === "cert" && value.type === "certificate") return value.cert as string
+  if (value.type === "custom" && fieldPath in value) return value[fieldPath] as string
+  return undefined
+}
+
 interface CreateResult {
   mcpClient?: MCPClient
   status: Status
@@ -208,6 +222,7 @@ const layer = Layer.effect(
     const auth = yield* McpAuth.Service
     const events = yield* EventV2Bridge.Service
     const browser = yield* McpBrowser.Service
+    const globalCred = yield* GlobalCredential.Service
 
     type Transport = StdioClientTransport | StreamableHTTPClientTransport | SSEClientTransport
 
@@ -340,6 +355,7 @@ const layer = Layer.effect(
     const connectLocal = Effect.fn("MCP.connectLocal")(function* (
       key: string,
       mcp: ConfigMCPV1.Info & { type: "local" },
+      credEnv?: Record<string, string>,
     ) {
       const [cmd, ...args] = mcp.command
       const baseDir = yield* InstanceState.directory
@@ -352,6 +368,7 @@ const layer = Layer.effect(
         env: {
           ...process.env,
           ...(cmd === "opencode" ? { BUN_BE_BUN: "1" } : {}),
+          ...credEnv,
           ...mcp.environment,
         },
       })
@@ -370,7 +387,7 @@ const layer = Layer.effect(
     })
 
     const create = Effect.fn("MCP.create")(
-      function* (key: string, mcp: ConfigMCPV1.Info) {
+      function* (key: string, mcp: ConfigMCPV1.Info, credEnv?: Record<string, string>) {
         if (mcp.enabled === false) {
           return DISABLED_RESULT
         }
@@ -378,7 +395,7 @@ const layer = Layer.effect(
         const { client: mcpClient, status } =
           mcp.type === "remote"
             ? yield* connectRemote(key, mcp as ConfigMCPV1.Info & { type: "remote" })
-            : yield* connectLocal(key, mcp as ConfigMCPV1.Info & { type: "local" })
+            : yield* connectLocal(key, mcp as ConfigMCPV1.Info & { type: "local" }, credEnv)
 
         if (!mcpClient) {
           if (status.status !== "connected" && status.status !== "disabled") {
@@ -516,7 +533,21 @@ const layer = Layer.effect(
                 return
               }
 
-              const result = yield* create(key, mcp)
+              let credEnv: Record<string, string> | undefined
+              if (mcp.type === "local" && mcp.credential_refs) {
+                const resolved: Record<string, string> = {}
+                for (const ref of mcp.credential_refs) {
+                  const cred = yield* globalCred.get(ref.id as GlobalCredential.ID)
+                  if (!cred) continue
+                  for (const [envKey, fieldPath] of Object.entries(ref.env)) {
+                    const value = extractCredentialField(cred.value, fieldPath)
+                    if (value !== undefined) resolved[envKey] = value
+                  }
+                }
+                credEnv = resolved
+              }
+
+              const result = yield* create(key, mcp, credEnv)
               s.status[key] = result.status
               if (result.mcpClient) {
                 s.clients[key] = result.mcpClient
@@ -626,7 +657,22 @@ const layer = Layer.effect(
 
     const createAndStore = Effect.fn("MCP.createAndStore")(function* (name: string, mcp: ConfigMCPV1.Info) {
       const s = yield* InstanceState.get(state)
-      const result = yield* create(name, mcp)
+
+      let credEnv: Record<string, string> | undefined
+      if (mcp.type === "local" && mcp.credential_refs) {
+        const resolved: Record<string, string> = {}
+        for (const ref of mcp.credential_refs) {
+          const cred = yield* globalCred.get(ref.id as GlobalCredential.ID)
+          if (!cred) continue
+          for (const [envKey, fieldPath] of Object.entries(ref.env)) {
+            const value = extractCredentialField(cred.value, fieldPath)
+            if (value !== undefined) resolved[envKey] = value
+          }
+        }
+        credEnv = resolved
+      }
+
+      const result = yield* create(name, mcp, credEnv)
 
       s.status[name] = result.status
       if (!result.mcpClient) {
@@ -998,7 +1044,7 @@ export type AuthStatus = "authenticated" | "expired" | "not_authenticated"
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [CrossSpawnSpawner.node, McpAuth.node, EventV2Bridge.node, Config.node, McpBrowser.node],
+  deps: [CrossSpawnSpawner.node, McpAuth.node, EventV2Bridge.node, Config.node, McpBrowser.node, GlobalCredential.node],
 })
 
 export * as MCP from "."

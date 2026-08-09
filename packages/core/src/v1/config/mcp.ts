@@ -3,6 +3,11 @@ export * as ConfigMCPV1 from "./mcp"
 import { Schema } from "effect"
 import { PositiveInt } from "../../schema"
 
+const CredentialRef = Schema.Struct({
+  id: Schema.String,
+  env: Schema.Record(Schema.String, Schema.String),
+}).annotate({ identifier: "McpCredentialRef" })
+
 export const Local = Schema.Struct({
   type: Schema.Literal("local").annotate({ description: "Type of MCP server connection" }),
   command: Schema.mutable(Schema.Array(Schema.String)).annotate({
@@ -13,6 +18,9 @@ export const Local = Schema.Struct({
   }),
   environment: Schema.optional(Schema.Record(Schema.String, Schema.String)).annotate({
     description: "Environment variables to set when running the MCP server",
+  }),
+  credential_refs: Schema.optional(Schema.mutable(Schema.Array(CredentialRef))).annotate({
+    description: "Global credentials to inject as environment variables. Each ref maps credential fields to env var names.",
   }),
   enabled: Schema.optional(Schema.Boolean).annotate({
     description: "Enable or disable the MCP server on startup",
