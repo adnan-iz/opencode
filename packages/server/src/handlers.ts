@@ -16,6 +16,7 @@ import { ReferenceHandler } from "./handlers/reference"
 import { LocationHandler } from "./handlers/location"
 import { IntegrationHandler } from "./handlers/integration"
 import { CredentialHandler } from "./handlers/credential"
+import { GlobalCredentialHandler } from "./handlers/global-credential"
 import { ProjectCopyHandler } from "./handlers/project-copy"
 
 export const handlers = Layer.mergeAll(
@@ -28,6 +29,7 @@ export const handlers = Layer.mergeAll(
   ProviderHandler,
   IntegrationHandler,
   CredentialHandler,
+  GlobalCredentialHandler,
   PermissionHandler,
   FileSystemHandler,
   CommandHandler,
