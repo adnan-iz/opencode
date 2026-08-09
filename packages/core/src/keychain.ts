@@ -1,3 +1,5 @@
+export * as Keychain from "./keychain"
+
 import { Effect } from "effect"
 
 let keytar: typeof import("keytar") | undefined
@@ -31,7 +33,7 @@ export const getSecret = (service: string, account: string) =>
       if (!kt) return undefined
       return (await kt.getPassword(service, account)) ?? undefined
     },
-    catch: () => undefined,
+    catch: (e) => new Error(`Failed to get secret: ${e}`),
   })
 
 export const deleteSecret = (service: string, account: string) =>
