@@ -6,6 +6,7 @@ import { Database } from "./database/database"
 import { GlobalCredentialTable, ProjectCredentialRefTable } from "./global-credential/sql"
 import { CredentialValueSchema } from "./global-credential/types"
 import type { CredentialValue, CredentialType } from "./global-credential/types"
+import { Keychain } from "./keychain"
 import { makeGlobalNode } from "./effect/app-node"
 
 export const ID = Schema.String.pipe(
@@ -47,6 +48,8 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/GlobalCredential") {}
 
+const KEYCHAIN_SERVICE = "opencode-credentials"
+
 function generateId(): string {
   return "cred_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
 }
@@ -83,30 +86,59 @@ const layer = Layer.effect(
     const { db } = yield* Database.Service
 
     const decode = Schema.decodeUnknownSync(CredentialValueSchema)
+
+    const decryptValue = (encrypted: string, keychainRef: string | null) =>
+      Effect.gen(function* () {
+        if (keychainRef) {
+          const account = keychainRef.replace(KEYCHAIN_SERVICE + ":", "")
+          const json = yield* Keychain.getSecret(KEYCHAIN_SERVICE, account).pipe(
+            Effect.catch(() => Effect.succeed(undefined)),
+          )
+          if (json) return decode(JSON.parse(json))
+        }
+        return decode(JSON.parse(encrypted))
+      })
+
+    const encryptValue = (id: string, value: CredentialValue) =>
+      Effect.gen(function* () {
+        const json = JSON.stringify(value)
+        const result = yield* Keychain.setSecret(KEYCHAIN_SERVICE, id, json).pipe(
+          Effect.catch(() => Effect.succeed(null)),
+        )
+        return { encrypted: json, keychainRef: result }
+      })
+
     const doGet = (id: ID) =>
       Effect.gen(function* () {
         const row = yield* db.select().from(GlobalCredentialTable).where(eq(GlobalCredentialTable.id, id)).get().pipe(Effect.orDie)
         if (!row) return undefined
-        const value = decode(JSON.parse(row.value))
+        const value = yield* decryptValue(row.value, row.keychain_ref)
         return rowToInfo(row, value)
       })
 
     return Service.of({
       all: Effect.fn("GlobalCredential.all")(function* () {
         const rows = yield* db.select().from(GlobalCredentialTable).orderBy(asc(GlobalCredentialTable.time_created)).all().pipe(Effect.orDie)
-        return rows.map((row) => rowToInfo(row, decode(JSON.parse(row.value))))
+        const results: Info[] = []
+        for (const row of rows) {
+          const value = yield* decryptValue(row.value, row.keychain_ref)
+          results.push(rowToInfo(row, value))
+        }
+        return results
       }),
 
       get: Effect.fn("GlobalCredential.get")(doGet),
 
       create: Effect.fn("GlobalCredential.create")(function* (input) {
         const id = generateId() as ID
+        const { encrypted, keychainRef } = yield* encryptValue(id, input.value)
         const now = Date.now()
         yield* db.insert(GlobalCredentialTable).values({
           id,
           label: input.label,
           type: input.type,
-          value: JSON.stringify(input.value),
+          value: encrypted,
+          keychain_ref: keychainRef,
           tags: input.tags ? JSON.stringify(input.tags) : null,
           time_created: now,
           time_updated: now,
@@ -128,11 +160,16 @@ const layer = Layer.effect(
         const sets: Record<string, unknown> = { time_updated: Date.now() }
         if (updates.label !== undefined) sets.label = updates.label
         if (updates.tags !== undefined) sets.tags = JSON.stringify(updates.tags)
-        if (updates.value !== undefined) sets.value = JSON.stringify(updates.value)
+        if (updates.value !== undefined) {
+          const { encrypted, keychainRef } = yield* encryptValue(id, updates.value)
+          sets.value = encrypted
+          sets.keychain_ref = keychainRef
+        }
         yield* db.update(GlobalCredentialTable).set(sets).where(eq(GlobalCredentialTable.id, id)).run().pipe(Effect.orDie)
       }),
 
       remove: Effect.fn("GlobalCredential.remove")(function* (id) {
+        yield* Keychain.deleteSecret(KEYCHAIN_SERVICE, id).pipe(Effect.catch(() => Effect.void))
         yield* db.delete(ProjectCredentialRefTable).where(eq(ProjectCredentialRefTable.credential_id, id)).run().pipe(Effect.orDie)
         yield* db.delete(GlobalCredentialTable).where(eq(GlobalCredentialTable.id, id)).run().pipe(Effect.orDie)
       }),
