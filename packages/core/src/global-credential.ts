@@ -50,8 +50,14 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Gl
 
 const KEYCHAIN_SERVICE = "opencode-credentials"
 
+export const DANGEROUS_ENV_VARS = new Set([
+  "PATH", "NODE_OPTIONS", "LD_PRELOAD", "LD_LIBRARY_PATH",
+  "DYLD_INSERT_LIBRARIES", "BASH_ENV", "ENV", "SHELL",
+  "PS1", "SHLVL", "PROMPT_COMMAND",
+])
+
 function generateId(): string {
-  return "cred_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+  return "cred_" + crypto.randomUUID()
 }
 
 function extractField(value: CredentialValue, fieldPath: string): string | undefined {
@@ -95,7 +101,9 @@ const layer = Layer.effect(
             Effect.catch(() => Effect.succeed(undefined)),
           )
           if (json) return decode(JSON.parse(json))
+          return yield* Effect.die(new Error("Credential not found in keychain"))
         }
+        // Legacy plaintext fallback for migration only — try to parse directly
         return decode(JSON.parse(encrypted))
       })
 
@@ -105,7 +113,10 @@ const layer = Layer.effect(
         const result = yield* Keychain.setSecret(KEYCHAIN_SERVICE, id, json).pipe(
           Effect.catch(() => Effect.succeed(null)),
         )
-        return { encrypted: json, keychainRef: result }
+        if (result === null) {
+          return yield* Effect.die(new Error("Keychain storage unavailable — cannot store credentials safely"))
+        }
+        return { encrypted: "keychain:encrypted", keychainRef: result } as const
       })
 
     const doGet = (id: ID) =>
@@ -175,6 +186,8 @@ const layer = Layer.effect(
       }),
 
       link: Effect.fn("GlobalCredential.link")(function* (projectPath, credentialID, envMapping) {
+        const existing = yield* doGet(credentialID)
+        if (!existing) return yield* Effect.die(new Error(`Credential ${credentialID} not found`))
         yield* db.insert(ProjectCredentialRefTable).values({
           project_path: projectPath,
           credential_id: credentialID,
@@ -218,6 +231,7 @@ const layer = Layer.effect(
             try { return JSON.parse(ref.env_mapping) as Record<string, string> } catch { return {} }
           })()
           for (const [envKey, fieldPath] of Object.entries(mapping)) {
+            if (DANGEROUS_ENV_VARS.has(envKey)) continue
             const value = extractField(cred.value, fieldPath)
             if (value !== undefined) env[envKey] = value
           }
