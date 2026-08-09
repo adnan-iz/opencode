@@ -134,7 +134,10 @@ function extractCredentialField(
   if (fieldPath === "password" && value.type === "username_password") return value.password as string
   if (fieldPath === "username" && value.type === "username_password") return value.username as string
   if (fieldPath === "cert" && value.type === "certificate") return value.cert as string
-  if (value.type === "custom" && fieldPath in value) return value[fieldPath] as string
+  if (value.type === "custom") {
+    const fields = value.fields as Record<string, string> | undefined
+    if (fields && fieldPath in fields) return fields[fieldPath]
+  }
   return undefined
 }
 
@@ -541,7 +544,7 @@ const layer = Layer.effect(
                   if (!cred) continue
                   for (const [envKey, fieldPath] of Object.entries(ref.env)) {
                     const value = extractCredentialField(cred.value, fieldPath)
-                    if (value !== undefined) resolved[envKey] = value
+                    if (value !== undefined && !GlobalCredential.DANGEROUS_ENV_VARS.has(envKey)) resolved[envKey] = value
                   }
                 }
                 credEnv = resolved
@@ -666,7 +669,7 @@ const layer = Layer.effect(
           if (!cred) continue
           for (const [envKey, fieldPath] of Object.entries(ref.env)) {
             const value = extractCredentialField(cred.value, fieldPath)
-            if (value !== undefined) resolved[envKey] = value
+            if (value !== undefined && !GlobalCredential.DANGEROUS_ENV_VARS.has(envKey)) resolved[envKey] = value
           }
         }
         credEnv = resolved
