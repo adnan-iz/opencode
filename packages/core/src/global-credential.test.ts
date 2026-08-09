@@ -89,6 +89,44 @@ describe("GlobalCredential", () => {
     }),
   )
 
+  it.effect("skip expired OAuth tokens in resolve", () =>
+    Effect.gen(function* () {
+      const svc = yield* GlobalCredential.Service
+      const future = Math.floor(Date.now() / 1000) + 3600
+      const past = Math.floor(Date.now() / 1000) - 3600
+
+      const valid = yield* svc.create({
+        label: "Valid OAuth",
+        type: "oauth",
+        value: { type: "oauth", method_id: "m1", refresh: "rt1", access: "valid-token", expires: future },
+      })
+
+      const expired = yield* svc.create({
+        label: "Expired OAuth",
+        type: "oauth",
+        value: { type: "oauth", method_id: "m2", refresh: "rt2", access: "expired-token", expires: past },
+      })
+
+      yield* svc.link("/oauth/project", valid.id, { OAUTH_VALID: "access" })
+      yield* svc.link("/oauth/project", expired.id, { OAUTH_EXPIRED: "access" })
+
+      const env = yield* svc.resolveForProject("/oauth/project")
+      expect(env.OAUTH_VALID).toBe("valid-token")
+      expect(env.OAUTH_EXPIRED).toBeUndefined()
+
+      const stillValid = yield* svc.refresh(valid.id)
+      expect(stillValid).toBe(true)
+
+      const stillValid2 = yield* svc.refresh(expired.id)
+      expect(stillValid2).toBe(false)
+
+      yield* svc.unlink("/oauth/project", valid.id)
+      yield* svc.unlink("/oauth/project", expired.id)
+      yield* svc.remove(valid.id)
+      yield* svc.remove(expired.id)
+    }),
+  )
+
   it.effect("end-to-end: create, link, resolve, unlink, delete", () =>
     Effect.gen(function* () {
       const svc = yield* GlobalCredential.Service

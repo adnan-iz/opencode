@@ -130,7 +130,10 @@ function extractCredentialField(
   fieldPath: string,
 ): string | undefined {
   if (fieldPath === "key" && value.type === "api_key") return value.key as string
-  if (fieldPath === "access" && value.type === "oauth") return value.access as string
+  if (fieldPath === "access" && value.type === "oauth") {
+    if ((value.expires as number) < Date.now() / 1000) return undefined
+    return value.access as string
+  }
   if (fieldPath === "password" && value.type === "username_password") return value.password as string
   if (fieldPath === "username" && value.type === "username_password") return value.username as string
   if (fieldPath === "cert" && value.type === "certificate") return value.cert as string

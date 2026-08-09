@@ -43,6 +43,7 @@ export interface Interface {
   readonly link: (projectPath: string, credentialID: ID, envMapping?: Record<string, string>) => Effect.Effect<void>
   readonly unlink: (projectPath: string, credentialID: ID) => Effect.Effect<void>
   readonly linked: (projectPath: string) => Effect.Effect<Info[]>
+  readonly refresh: (id: ID) => Effect.Effect<boolean>
   readonly resolveForProject: (projectPath: string) => Effect.Effect<Record<string, string>>
 }
 
@@ -62,7 +63,10 @@ function generateId(): string {
 
 function extractField(value: CredentialValue, fieldPath: string): string | undefined {
   if (fieldPath === "key" && value.type === "api_key") return value.key
-  if (fieldPath === "access" && value.type === "oauth") return value.access
+  if (fieldPath === "access" && value.type === "oauth") {
+    if (value.expires < Date.now() / 1000) return undefined
+    return value.access
+  }
   if (fieldPath === "password" && value.type === "username_password") return value.password
   if (fieldPath === "username" && value.type === "username_password") return value.username
   if (fieldPath === "cert" && value.type === "certificate") return value.cert
@@ -214,6 +218,13 @@ const layer = Layer.effect(
           if (cred) results.push(cred)
         }
         return results
+      }),
+
+      refresh: Effect.fn("GlobalCredential.refresh")(function* (id) {
+        const cred = yield* doGet(id)
+        if (!cred) return false
+        if (cred.value.type === "oauth") return cred.value.expires > Date.now() / 1000
+        return true
       }),
 
       resolveForProject: Effect.fn("GlobalCredential.resolveForProject")(function* (projectPath) {
