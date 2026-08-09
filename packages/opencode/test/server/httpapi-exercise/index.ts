@@ -727,6 +727,78 @@ const scenarios: Scenario[] = [
       body: { label: "Work" },
     }))
     .status(204, undefined, "status"),
+  http.protected.get("/api/credentials", "global-credential.list").json(200, array),
+  http.protected
+    .post("/api/credentials", "global-credential.create")
+    .mutating()
+    .at((ctx) => ({
+      path: "/api/credentials",
+      headers: ctx.headers(),
+      body: { label: "HTTP API Test", type: "api_key", value: { type: "api_key", key: "httpapi-test-key" }, tags: ["httpapi"] },
+    }))
+    .json(
+      200,
+      (body) => {
+        object(body)
+        check(typeof body.id === "string" && body.id.length > 0, "create should return a credential id")
+        check(body.label === "HTTP API Test", "create should return requested label")
+        check(body.type === "api_key", "create should return requested type")
+      },
+      "status",
+    ),
+  http.protected
+    .get("/api/credentials/{id}", "global-credential.get.missing")
+    .at((ctx) => ({
+      path: route("/api/credentials/{id}", { id: "cred_httpapi_missing" }),
+      headers: ctx.headers(),
+    }))
+    .status(404, undefined, "status"),
+  http.protected
+    .patch("/api/credentials/{id}", "global-credential.update")
+    .mutating()
+    .at((ctx) => ({
+      path: route("/api/credentials/{id}", { id: "cred_httpapi_missing" }),
+      headers: ctx.headers(),
+      body: { label: "Updated" },
+    }))
+    .status(204, undefined, "status"),
+  http.protected
+    .delete("/api/credentials/{id}", "global-credential.remove")
+    .mutating()
+    .at((ctx) => ({
+      path: route("/api/credentials/{id}", { id: "cred_httpapi_missing" }),
+      headers: ctx.headers(),
+    }))
+    .status(204, undefined, "status"),
+  http.protected
+    .post("/api/credentials/{id}/link", "global-credential.link")
+    .mutating()
+    .at((ctx) => ({
+      path: route("/api/credentials/{id}/link", { id: "cred_httpapi_missing" }),
+      headers: ctx.headers(),
+      body: { project_path: ctx.directory ?? ".", env_mapping: { API_KEY: "api_key" } },
+    }))
+    .status(500, undefined, "status"),
+  http.protected
+    .delete("/api/credentials/{id}/link/{project}", "global-credential.unlink")
+    .mutating()
+    .at((ctx) => ({
+      path: route("/api/credentials/{id}/link/{project}", {
+        id: "cred_httpapi_missing",
+        project: "proj_httpapi_missing",
+      }),
+      headers: ctx.headers(),
+    }))
+    .status(204, undefined, "status"),
+  http.protected
+    .get("/api/credentials/resolve/{project}", "global-credential.resolve")
+    .at((ctx) => ({
+      path: route("/api/credentials/resolve/{project}", { project: "proj_httpapi_missing" }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      object(body)
+    }),
   http.protected.get("/api/command", "v2.command.list").json(200, locationData(array)),
   http.protected.get("/api/skill", "v2.skill.list").json(200, locationData(array)),
   http.protected

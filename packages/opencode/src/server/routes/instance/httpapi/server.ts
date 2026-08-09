@@ -55,6 +55,7 @@ import { AppNodeBuilderV1 } from "@/effect/app-node-builder-v1"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { httpClient } from "@opencode-ai/core/effect/app-node-platform"
 import { EventV2 } from "@opencode-ai/core/event"
+import { GlobalCredential } from "@opencode-ai/core/global-credential"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { Npm } from "@opencode-ai/core/npm"
 import { PermissionSaved } from "@opencode-ai/core/permission/saved"
@@ -249,6 +250,7 @@ const app = LayerNode.group([
   LSP.node,
   MCP.node,
   McpAuth.node,
+  GlobalCredential.node,
   Command.node,
   Truncate.node,
   ToolRegistry.node,
