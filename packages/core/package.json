@@ -124,6 +124,7 @@
     "venice-ai-sdk-provider": "2.1.1",
     "which": "6.0.1",
     "xdg-basedir": "5.1.0",
+    "keytar": "7.9.0",
     "zod": "catalog:"
   },
   "overrides": {
