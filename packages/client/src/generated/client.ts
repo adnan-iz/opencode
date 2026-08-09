@@ -63,6 +63,21 @@ import type {
   CredentialsUpdateOutput,
   CredentialsRemoveInput,
   CredentialsRemoveOutput,
+  GlobalCredentialsListOutput,
+  GlobalCredentialsCreateInput,
+  GlobalCredentialsCreateOutput,
+  GlobalCredentialsGetInput,
+  GlobalCredentialsGetOutput,
+  GlobalCredentialsUpdateInput,
+  GlobalCredentialsUpdateOutput,
+  GlobalCredentialsRemoveInput,
+  GlobalCredentialsRemoveOutput,
+  GlobalCredentialsLinkInput,
+  GlobalCredentialsLinkOutput,
+  GlobalCredentialsUnlinkInput,
+  GlobalCredentialsUnlinkOutput,
+  GlobalCredentialsResolveInput,
+  GlobalCredentialsResolveOutput,
   PermissionsListRequestsInput,
   PermissionsListRequestsOutput,
   PermissionsListSavedInput,
@@ -659,6 +674,93 @@ export function make(options: ClientOptions) {
             successStatus: 204,
             declaredStatuses: [401, 400],
             empty: true,
+          },
+          requestOptions,
+        ),
+    },
+    globalCredentials: {
+      list: (requestOptions?: RequestOptions) =>
+        request<GlobalCredentialsListOutput>(
+          { method: "GET", path: `/api/credentials`, successStatus: 200, declaredStatuses: [401, 400], empty: false },
+          requestOptions,
+        ),
+      create: (input: GlobalCredentialsCreateInput, requestOptions?: RequestOptions) =>
+        request<GlobalCredentialsCreateOutput>(
+          {
+            method: "POST",
+            path: `/api/credentials`,
+            body: { label: input["label"], type: input["type"], value: input["value"], tags: input["tags"] },
+            successStatus: 200,
+            declaredStatuses: [401, 400],
+            empty: false,
+          },
+          requestOptions,
+        ),
+      get: (input: GlobalCredentialsGetInput, requestOptions?: RequestOptions) =>
+        request<GlobalCredentialsGetOutput>(
+          {
+            method: "GET",
+            path: `/api/credentials/${encodeURIComponent(input.id)}`,
+            successStatus: 200,
+            declaredStatuses: [401, 400],
+            empty: false,
+          },
+          requestOptions,
+        ),
+      update: (input: GlobalCredentialsUpdateInput, requestOptions?: RequestOptions) =>
+        request<GlobalCredentialsUpdateOutput>(
+          {
+            method: "PATCH",
+            path: `/api/credentials/${encodeURIComponent(input.id)}`,
+            body: { label: input["label"], value: input["value"], tags: input["tags"] },
+            successStatus: 204,
+            declaredStatuses: [401, 400],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      remove: (input: GlobalCredentialsRemoveInput, requestOptions?: RequestOptions) =>
+        request<GlobalCredentialsRemoveOutput>(
+          {
+            method: "DELETE",
+            path: `/api/credentials/${encodeURIComponent(input.id)}`,
+            successStatus: 204,
+            declaredStatuses: [401, 400],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      link: (input: GlobalCredentialsLinkInput, requestOptions?: RequestOptions) =>
+        request<GlobalCredentialsLinkOutput>(
+          {
+            method: "POST",
+            path: `/api/credentials/${encodeURIComponent(input.id)}/link`,
+            body: { project_path: input["project_path"], env_mapping: input["env_mapping"] },
+            successStatus: 204,
+            declaredStatuses: [401, 400],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      unlink: (input: GlobalCredentialsUnlinkInput, requestOptions?: RequestOptions) =>
+        request<GlobalCredentialsUnlinkOutput>(
+          {
+            method: "DELETE",
+            path: `/api/credentials/${encodeURIComponent(input.id)}/link/${encodeURIComponent(input.project)}`,
+            successStatus: 204,
+            declaredStatuses: [401, 400],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      resolve: (input: GlobalCredentialsResolveInput, requestOptions?: RequestOptions) =>
+        request<GlobalCredentialsResolveOutput>(
+          {
+            method: "GET",
+            path: `/api/credentials/resolve/${encodeURIComponent(input.project)}`,
+            successStatus: 200,
+            declaredStatuses: [401, 400],
+            empty: false,
           },
           requestOptions,
         ),

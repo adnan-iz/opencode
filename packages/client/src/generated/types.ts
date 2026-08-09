@@ -2288,6 +2288,115 @@ export type CredentialsRemoveInput = {
 
 export type CredentialsRemoveOutput = void
 
+export type GlobalCredentialsListOutput = ReadonlyArray<{
+  readonly id: string
+  readonly label: string
+  readonly type: string
+  readonly value: unknown
+  readonly tags?: ReadonlyArray<string> | undefined
+  readonly time_created: number
+  readonly time_updated: number
+}>
+
+export type GlobalCredentialsCreateInput = {
+  readonly label: {
+    readonly label: string
+    readonly type: "api_key" | "oauth" | "username_password" | "certificate" | "custom"
+    readonly value: unknown
+    readonly tags?: ReadonlyArray<string> | undefined
+  }["label"]
+  readonly type: {
+    readonly label: string
+    readonly type: "api_key" | "oauth" | "username_password" | "certificate" | "custom"
+    readonly value: unknown
+    readonly tags?: ReadonlyArray<string> | undefined
+  }["type"]
+  readonly value: {
+    readonly label: string
+    readonly type: "api_key" | "oauth" | "username_password" | "certificate" | "custom"
+    readonly value: unknown
+    readonly tags?: ReadonlyArray<string> | undefined
+  }["value"]
+  readonly tags?: {
+    readonly label: string
+    readonly type: "api_key" | "oauth" | "username_password" | "certificate" | "custom"
+    readonly value: unknown
+    readonly tags?: ReadonlyArray<string> | undefined
+  }["tags"]
+}
+
+export type GlobalCredentialsCreateOutput = {
+  readonly id: string
+  readonly label: string
+  readonly type: string
+  readonly value: unknown
+  readonly tags?: ReadonlyArray<string> | undefined
+  readonly time_created: number
+  readonly time_updated: number
+}
+
+export type GlobalCredentialsGetInput = { readonly id: { readonly id: string }["id"] }
+
+export type GlobalCredentialsGetOutput = {
+  readonly id: string
+  readonly label: string
+  readonly type: string
+  readonly value: unknown
+  readonly tags?: ReadonlyArray<string> | undefined
+  readonly time_created: number
+  readonly time_updated: number
+}
+
+export type GlobalCredentialsUpdateInput = {
+  readonly id: { readonly id: string }["id"]
+  readonly label?: {
+    readonly label?: string | undefined
+    readonly value?: unknown | undefined
+    readonly tags?: ReadonlyArray<string> | undefined
+  }["label"]
+  readonly value?: {
+    readonly label?: string | undefined
+    readonly value?: unknown | undefined
+    readonly tags?: ReadonlyArray<string> | undefined
+  }["value"]
+  readonly tags?: {
+    readonly label?: string | undefined
+    readonly value?: unknown | undefined
+    readonly tags?: ReadonlyArray<string> | undefined
+  }["tags"]
+}
+
+export type GlobalCredentialsUpdateOutput = void
+
+export type GlobalCredentialsRemoveInput = { readonly id: { readonly id: string }["id"] }
+
+export type GlobalCredentialsRemoveOutput = void
+
+export type GlobalCredentialsLinkInput = {
+  readonly id: { readonly id: string }["id"]
+  readonly project_path: {
+    readonly project_path: string
+    readonly env_mapping?: { readonly [x: string]: string } | undefined
+  }["project_path"]
+  readonly env_mapping?: {
+    readonly project_path: string
+    readonly env_mapping?: { readonly [x: string]: string } | undefined
+  }["env_mapping"]
+}
+
+export type GlobalCredentialsLinkOutput = void
+
+export type GlobalCredentialsUnlinkInput = {
+  readonly id: { readonly id: string; readonly project: string }["id"]
+  readonly project: { readonly id: string; readonly project: string }["project"]
+}
+
+export type GlobalCredentialsUnlinkOutput = void
+
+export type GlobalCredentialsResolveInput = { readonly project: { readonly project: string }["project"] }
+
+export type GlobalCredentialsResolveOutput = { readonly [x: string]: string }
+
 export type PermissionsListRequestsInput = {
   readonly location?: {
     readonly location?: { readonly directory?: string | undefined; readonly workspace?: string | undefined } | undefined
