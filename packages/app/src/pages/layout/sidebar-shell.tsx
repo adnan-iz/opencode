@@ -30,6 +30,8 @@ export const SidebarContent = (props: {
   onOpenSettings: () => void
   helpLabel: Accessor<string>
   onOpenHelp: () => void
+  credentialsLabel: Accessor<string>
+  onOpenCredentials: () => void
   renderPanel: () => JSX.Element
 }): JSX.Element => {
   const expanded = createMemo(() => !!props.mobile || props.opened())
@@ -106,6 +108,15 @@ export const SidebarContent = (props: {
               size="large"
               onClick={props.onOpenHelp}
               aria-label={props.helpLabel()}
+            />
+          </Tooltip>
+          <Tooltip placement={placement()} value={props.credentialsLabel()}>
+            <IconButton
+              icon="lock-locked"
+              variant="ghost"
+              size="large"
+              onClick={props.onOpenCredentials}
+              aria-label={props.credentialsLabel()}
             />
           </Tooltip>
         </div>

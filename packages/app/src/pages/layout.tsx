@@ -2250,6 +2250,8 @@ export default function LegacyLayout(props: ParentProps) {
       onOpenSettings={openSettings}
       helpLabel={() => language.t("sidebar.help")}
       onOpenHelp={() => platform.openExternal("https://opencode.ai/desktop-feedback")}
+      credentialsLabel={() => "Credentials"}
+      onOpenCredentials={() => navigate("/credentials")}
       renderPanel={() =>
         mobile ? <SidebarPanel project={currentProject} mobile /> : <SidebarPanel project={currentProject} merged />
       }

@@ -11,6 +11,7 @@ import { closeHomeProject, errorMessage, homeProjectDirectories } from "@/pages/
 import { Persist, persisted } from "@/utils/persist"
 import { showToast } from "@/utils/toast"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { useNavigate } from "@solidjs/router"
 import { createResource } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { HomeController } from "./home-controller"
@@ -23,6 +24,7 @@ export function createHomeProjectsController(home: HomeController) {
   const notification = useNotification()
   const openSettings = useSettingsCommand()
   const serverManagement = useServerManagementController({ navigateOnAdd: false })
+  const navigate = useNavigate()
   const [_state, setState, _, ready] = persisted(
     Persist.global("home.servers", ["home.servers.v1"]),
     createStore({ collapsed: {} as Record<string, boolean> }),
@@ -121,6 +123,7 @@ export function createHomeProjectsController(home: HomeController) {
     utility: {
       settings: openSettings,
       help: () => platform.openExternal("https://opencode.ai/desktop-feedback"),
+      credentials: () => navigate("/credentials"),
     },
   }
 }

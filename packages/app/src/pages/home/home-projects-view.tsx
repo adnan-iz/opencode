@@ -58,6 +58,7 @@ export type HomeProjectsViewProps = {
   onCloseProject: (server: ServerConnection.Any, directory: string) => void
   onOpenSettings: () => void
   onOpenHelp: () => void
+  onOpenCredentials?: () => void
 }
 
 export function HomeProjectsView(props: HomeProjectsViewProps) {
@@ -148,6 +149,7 @@ export function HomeProjectsView(props: HomeProjectsViewProps) {
         class="mb-8 mt-4 hidden shrink-0 lg:flex"
         onOpenSettings={props.onOpenSettings}
         onOpenHelp={props.onOpenHelp}
+        onOpenCredentials={props.onOpenCredentials}
         language={props.language}
       />
     </aside>
@@ -158,6 +160,7 @@ export function HomeUtilityNav(props: {
   class?: string
   onOpenSettings: () => void
   onOpenHelp: () => void
+  onOpenCredentials?: () => void
   language: ReturnType<typeof useLanguage>
 }) {
   return (
@@ -178,6 +181,16 @@ export function HomeUtilityNav(props: {
         <IconV2 name="help" size="small" />
         <span class={HOME_PROJECT_NAV_LABEL}>{props.language.t("sidebar.help")}</span>
       </HomeProjectNavButton>
+      {props.onOpenCredentials && (
+        <HomeProjectNavButton
+          type="button"
+          class="text-v2-text-text-faint [&>[data-slot=icon-svg]]:text-v2-icon-icon-muted"
+          onClick={props.onOpenCredentials}
+        >
+          <IconV2 name="lock-locked" size="small" />
+          <span class={HOME_PROJECT_NAV_LABEL}>Credentials</span>
+        </HomeProjectNavButton>
+      )}
     </div>
   )
 }
