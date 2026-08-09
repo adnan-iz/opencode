@@ -228,4 +228,22 @@ function serverLayer(opts: { port: number; hostname: string }) {
   )
 }
 
+async function runMigrationOnce() {
+  const marker = path.join(Global.Path.data, ".cred-migration-done")
+  const markerExists = await access(marker).then(() => true).catch(() => false)
+  if (markerExists) return
+
+  const [{ CredentialMigration }, { LayerNode }, { GlobalCredential }, { Database }] = await Promise.all([
+    import("@opencode-ai/core/migration/credential-migration"),
+    import("@opencode-ai/core/effect/layer-node"),
+    import("@opencode-ai/core/global-credential"),
+    import("@opencode-ai/core/database/database"),
+  ])
+  const program = CredentialMigration.migrate().pipe(
+    Effect.provide(LayerNode.compile(LayerNode.group([GlobalCredential.node, Database.node]))),
+  )
+  await Effect.runPromise(program).catch(() => {})
+  await writeFile(marker, "").catch(() => {})
+}
+
 export * as Server from "./server"
